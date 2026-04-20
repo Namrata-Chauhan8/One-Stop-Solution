@@ -1,0 +1,15 @@
+export const UserData = {
+  _id: "1234567890abcdef",
+  name: "John Doe",
+  email: "d1p8o@example.com",
+  phone: "1234567890",
+  address: "123 Main St, Anytown, USA",
+  city: "Anytown",
+  country: "USA",
+  postalCode: "12345",
+  shippingAddress: "123 Main St, Anytown, USA",
+  shippingCity: "Anytown",
+  shippingCountry: "USA",
+  shippingPostalCode: "12345",
+  profilePicture: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+};
