@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { isAuthenticated } from "../middlewares/authMiddleware.js";
+import { isAdmin, isAuthenticated } from "../middlewares/authMiddleware.js";
 import {
   createCategoryController,
   deleteCategoryController,
@@ -14,16 +14,27 @@ const router = Router();
 router.get("/get-all", isAuthenticated, getAllCategoriesController);
 
 //create category
-router.post("/create-category", isAuthenticated, createCategoryController);
+router.post(
+  "/create-category",
+  isAuthenticated,
+  isAdmin,
+  createCategoryController,
+);
 
 //delete category
 router.delete(
   "/delete-category/:id",
   isAuthenticated,
+  isAdmin,
   deleteCategoryController,
 );
 
 //update category
-router.put("/update-category/:id", isAuthenticated, updateCategoryController);
+router.put(
+  "/update-category/:id",
+  isAuthenticated,
+  isAdmin,
+   updateCategoryController,
+);
 
 export default router;

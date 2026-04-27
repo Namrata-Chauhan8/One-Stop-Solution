@@ -4,11 +4,36 @@ import cloudinary from "cloudinary";
 
 // Get All Products controller
 export const getAllProductsController = async (req, res) => {
+  const { keyword, category } = req.query;
   try {
-    const products = await Product.find({});
+    const products = await Product.find({
+      name: {
+        $regex: keyword ? keyword : "",
+        $options: "i",
+      },
+      category: category ? category : "",
+    }).populate("category");
     return res.status(200).send({
       success: true,
       message: "All Products List",
+      products,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({
+      success: false,
+      message: "Error in getting products",
+      error,
+    });
+  }
+};
+
+export const getTopProductsController = async (req, res) => {
+  try {
+    const products = await Product.find({}).sort({ rating: -1 }).limit(3);
+    return res.status(200).json ({
+      success: true,
+      message: "Top Products List",
       products,
     });
   } catch (error) {
@@ -235,7 +260,7 @@ export const DeleteProductController = async (req, res) => {
     //find and delete image from cloudinary
     for (let i = 0; i < product.images.length; i++) {
       await cloudinary.v2.uploader.destroy(product.images[i].public_id);
-    } 
+    }
     await product.deleteOne();
     return res.status(200).send({
       success: true,
@@ -246,6 +271,53 @@ export const DeleteProductController = async (req, res) => {
     return res.status(500).send({
       success: false,
       message: "Error in deleting product",
+      error,
+    });
+  }
+};
+
+export const createProductReviewController = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).send({
+        success: false,
+        message: "Product not found",
+      });
+    }
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString(),
+    );
+    if (alreadyReviewed) {
+      return res.status(400).send({
+        success: false,
+        message: "Product already reviewed",
+      });
+    }
+    const review = {
+      name: req.user.name,
+      rating: Number(rating),
+      comment,
+      user: req.user._id,
+    };
+    product.reviews.push(review);
+    product.numReviews = product.reviews.length;
+    product.rating =
+      product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+      product.reviews.length;
+    await product.save();
+    return res.status(200).send({
+      success: true,
+      message: "Review created successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({
+      success: false,
+      message: "Error in creating review",
       error,
     });
   }

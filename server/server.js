@@ -8,17 +8,26 @@ import cookieParser from "cookie-parser";
 import cloudinary from "cloudinary";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import Stripe from "stripe";
+import helmet from "helmet";
+import mongoSanitize from "express-mongo-sanitize";
 
 dotenv.config();
 
 //rest object
 const app = express();
 
+app.use(helmet());
+app.use(mongoSanitize()); 
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(cookieParser());
+
+//stripe configuration
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -32,6 +41,7 @@ connectDb();
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/product", productRoutes);
 app.use("/api/v1/category", categoryRoutes);
+app.use("/api/v1/order", orderRoutes);
 
 //route
 app.get("/api/v1", (req, res) => {
