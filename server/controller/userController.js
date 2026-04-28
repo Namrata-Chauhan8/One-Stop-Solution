@@ -102,8 +102,8 @@ export const loginController = async (req, res) => {
         .status(200)
         .cookie("token", token, {
           expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-          secure: process.env.NODE_ENV === "development" ? true : false,
-          httpOnly: process.env.NODE_ENV === "development" ? true : false,
+          secure: process.env.NODE_ENV !== "development",
+          httpOnly: true,
           sameSite: "strict",
         })
         .send({
@@ -175,8 +175,8 @@ export const logoutController = async (req, res) => {
         .status(200)
         .cookie("token", "", {
           expires: new Date(Date.now()),
-          secure: process.env.NODE_ENV === "development" ? true : false,
-          httpOnly: process.env.NODE_ENV === "development" ? true : false,
+          secure: process.env.NODE_ENV !== "development",
+          httpOnly: true,
         })
         .send({
           success: true,
