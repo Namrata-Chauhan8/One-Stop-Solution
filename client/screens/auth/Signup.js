@@ -12,15 +12,21 @@ import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "../../components/form/InputBox";
 import { MaterialIcons, AntDesign } from "@expo/vector-icons";
+import { useDispatch } from "react-redux";
+import { signup } from "../../redux/features/auth/userAction";
+import { useReduxStateHook } from "../../hooks/customHooks";
 
 const Signup = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { loading } = useReduxStateHook(navigation, "Home");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
+  const [country, setCountry] = useState("India");
   const [contact, setContact] = useState("");
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   // Email validation
@@ -32,6 +38,10 @@ const Signup = ({ navigation }) => {
   // Form validation
   const validateForm = () => {
     const newErrors = {};
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required";
+    }
 
     if (!email.trim()) {
       newErrors.email = "Email is required";
@@ -59,6 +69,10 @@ const Signup = ({ navigation }) => {
       newErrors.city = "City is required";
     }
 
+    if (!country.trim()) {
+      newErrors.country = "Country is required";
+    }
+
     if (!contact.trim()) {
       newErrors.contact = "Contact number is required";
     } else if (!/^\d{10}$/.test(contact.replace(/\D/g, ""))) {
@@ -75,31 +89,28 @@ const Signup = ({ navigation }) => {
       return;
     }
 
-    setLoading(true);
     try {
-      // Simulate API call
-      setTimeout(() => {
-        setLoading(false);
-        console.log("Signup successful:", {
-          email,
+      await dispatch(
+        signup(
+          name.trim(),
+          email.trim(),
           password,
-          address,
-          city,
+          address.trim(),
+          city.trim(),
+          country.trim(),
           contact,
-        });
-        // Clear form
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-        setAddress("");
-        setCity("");
-        setContact("");
-        // Navigate to home screen
-        navigation.replace("Home");
-      }, 1500);
+        ),
+      );
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setAddress("");
+      setCity("");
+      setCountry("India");
+      setContact("");
     } catch (error) {
-      setLoading(false);
-      console.log("Signup error:", error);
+      console.log("Signup error:", error.message || error);
     }
   };
 
@@ -126,6 +137,26 @@ const Signup = ({ navigation }) => {
 
           {/* Form Section */}
           <View style={styles.formSection}>
+            {/* Name Input */}
+            <View style={styles.inputGroup}>
+              <InputField
+                label="Name"
+                icon="person"
+                iconType="MaterialIcons"
+                placeholder="Enter your name"
+                value={name}
+                editable={!loading}
+                error={errors.name}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (errors.name) setErrors({ ...errors, name: "" });
+                }}
+              />
+              {errors.name && (
+                <Text style={styles.errorText}>{errors.name}</Text>
+              )}
+            </View>
+
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <InputField
@@ -228,6 +259,26 @@ const Signup = ({ navigation }) => {
               />
               {errors.city && (
                 <Text style={styles.errorText}>{errors.city}</Text>
+              )}
+            </View>
+
+            {/* Country Input */}
+            <View style={styles.inputGroup}>
+              <InputField
+                label="Country"
+                icon="flag"
+                iconType="MaterialIcons"
+                placeholder="Enter your country"
+                value={country}
+                editable={false}
+                error={errors.country}
+                onChangeText={(text) => {
+                  setCountry(text);
+                  if (errors.country) setErrors({ ...errors, country: "" });
+                }}
+              />
+              {errors.country && (
+                <Text style={styles.errorText}>{errors.country}</Text>
               )}
             </View>
 

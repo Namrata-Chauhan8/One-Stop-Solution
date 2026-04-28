@@ -1,11 +1,17 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useReduxStateHook } from "../../hooks/customHooks";
 import React from "react";
+import { useDispatch } from "react-redux";
+import { logout } from "../../redux/features/auth/userAction";
 
 const Footer = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+
+  const { loading } = useReduxStateHook(navigation, "Login");
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -62,13 +68,15 @@ const Footer = () => {
           Cart
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity name="logout" style={styles.menuContainer}>
+      <TouchableOpacity
+        name="logout"
+        style={styles.menuContainer}
+        onPress={() => dispatch(logout())}
+        disabled={loading}
+      >
         <AntDesign
           name="logout"
           style={[styles.icon, route.name === "Logout" && styles.active]}
-          onPress={() => {
-            (alert("Logout successfully"), navigation.navigate("Login"));
-          }}
         />
         <Text
           style={[styles.iconText, route.name === "Logout" && styles.active]}

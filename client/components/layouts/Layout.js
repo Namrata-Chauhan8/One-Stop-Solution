@@ -3,10 +3,14 @@ import React from "react";
 import Footer from "./Footer";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const Layout = ({ children }) => {
+const Layout = ({ children, scroll = true }) => {
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      {scroll ? (
+        <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      ) : (
+        <View style={styles.content}>{children}</View>
+      )}
 
       <View style={styles.footer}>
         <Footer />

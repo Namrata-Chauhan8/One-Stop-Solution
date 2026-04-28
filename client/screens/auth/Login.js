@@ -2,23 +2,25 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
   ActivityIndicator,
 } from "react-native";
 import React, { useState } from "react";
-import { MaterialIcons, Feather, AntDesign } from "@expo/vector-icons";
+import { MaterialIcons, AntDesign } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch } from "react-redux";
 import InputField from "../../components/form/InputBox";
+import { login } from "../../redux/features/auth/userAction";
+import { useReduxStateHook } from "../../hooks/customHooks";
 
 const Login = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { loading } = useReduxStateHook(navigation, "Home");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   // Email validation
@@ -53,21 +55,12 @@ const Login = ({ navigation }) => {
       return;
     }
 
-    setLoading(true);
     try {
-      // Simulate API call
-      setTimeout(() => {
-        setLoading(false);
-        console.log("Login successful:", { email, password });
-        //clear form
-        setEmail("");
-        setPassword("");
-        // Navigate to home screen
-        navigation.replace("Home");
-      }, 1500);
+      await dispatch(login(email.trim(), password));
+      setEmail("");
+      setPassword("");
     } catch (error) {
-      setLoading(false);
-      console.log("Login error:", error);
+      console.log("Login error:", error.message || error);
     }
   };
 
@@ -297,6 +290,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  apiErrorText: {
+    fontSize: 13,
+    color: "#c62828",
+    marginTop: 4,
+    marginBottom: 16,
+    textAlign: "center",
+    fontWeight: "600",
   },
   dividerContainer: {
     flexDirection: "row",

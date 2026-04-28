@@ -241,7 +241,7 @@ const MyOrders = ({ navigation }) => {
   );
 
   return (
-    <Layout>
+    <Layout scroll={false}>
       <View style={styles.container}>
         <FlatList
           data={filteredOrders}

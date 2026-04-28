@@ -49,11 +49,26 @@ export const signupController = async (req, res) => {
       country,
       phone,
     });
-    return res.status(201).send({
-      success: true,
-      message: "Registration successful",
-      user: newUser,
+
+    const secretKey = process.env.JWT_SECRET;
+    const token = jwt.sign({ _id: newUser._id }, secretKey, {
+      expiresIn: "7d",
     });
+
+    return res
+      .status(201)
+      .cookie("token", token, {
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        secure: process.env.NODE_ENV !== "development",
+        httpOnly: true,
+        sameSite: "strict",
+      })
+      .send({
+        success: true,
+        message: "Registration successful",
+        token,
+        user: newUser,
+      });
   } catch (error) {
     console.log(error);
     return res.status(500).send({
