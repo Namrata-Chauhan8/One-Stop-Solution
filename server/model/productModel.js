@@ -45,7 +45,6 @@ const productSchema = new mongoose.Schema(
     },
     quantity: {
       type: Number,
-      required: [true, "Product Quantity is required"],
     },
     category: {
       type: mongoose.Schema.Types.ObjectId,

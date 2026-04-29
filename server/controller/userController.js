@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import { getDataUri } from "../utils/features.js";
 import cloudinary from "cloudinary";
 
+const normalizeSearch = (value) => value?.trim();
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 //Signup controller
 export const signupController = async (req, res) => {
   try {
@@ -158,12 +161,15 @@ export const getProfileController = async (req, res) => {
       success: true,
       message: "User profile fetched successfully",
       user: {
+        _id: user._id,
         name: user.name,
         email: user.email,
         address: user.address,
         city: user.city,
         country: user.country,
         phone: user.phone,
+        role: user.role,
+        profilePicture: user.profilePicture?.url,
       },
     });
   } catch (error) {
@@ -292,6 +298,63 @@ export const updatePasswordController = async (req, res) => {
   }
 };
 
+//get all users for admin controller
+export const getAllUsersController = async (req, res) => {
+  try {
+    const page = Number.parseInt(req.query.page, 10);
+    const limit = Number.parseInt(req.query.limit, 10);
+    const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const pageLimit = Number.isInteger(limit) && limit > 0 ? limit : 10;
+    const keyword = normalizeSearch(req.query.keyword);
+    const role = normalizeSearch(req.query.role);
+    const filter = {};
+
+    if (keyword) {
+      filter.$or = [
+        { name: { $regex: escapeRegex(keyword), $options: "i" } },
+        { email: { $regex: escapeRegex(keyword), $options: "i" } },
+        { phone: { $regex: escapeRegex(keyword), $options: "i" } },
+      ];
+    }
+
+    if (role) {
+      filter.role = role;
+    }
+
+    const totalUsers = await User.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(totalUsers / pageLimit));
+    const safePage = Math.min(currentPage, totalPages);
+    const skip = (safePage - 1) * pageLimit;
+    const users = await User.find(filter)
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit);
+
+    return res.status(200).send({
+      success: true,
+      message: "Users fetched successfully",
+      users,
+      totalUsers,
+      pagination: {
+        totalUsers,
+        totalPages,
+        currentPage: safePage,
+        pageSize: pageLimit,
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({
+      success: false,
+      message: "Error in getting users",
+      error,
+    });
+  }
+};
+
 //update profile picture controller
 export const updateProfilePictureController = async (req, res) => {
   try {
@@ -325,6 +388,33 @@ export const updateProfilePictureController = async (req, res) => {
     return res.status(500).send({
       success: false,
       message: "Error in updating profile picture",
+      error,
+    });
+  }
+};
+
+//delete profile picture controller
+export const deleteProfilePictureController = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user.profilePicture?.public_id) {
+      await cloudinary.v2.uploader.destroy(user.profilePicture.public_id);
+    }
+
+    user.profilePicture = null;
+    await user.save();
+
+    return res.status(200).send({
+      success: true,
+      message: "Profile picture deleted successfully",
+      profilePicture: null,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({
+      success: false,
+      message: "Error in deleting profile picture",
       error,
     });
   }

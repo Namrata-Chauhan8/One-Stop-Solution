@@ -3,17 +3,23 @@ import React from "react";
 import Layout from "../../components/layouts/Layout";
 import { AntDesign, Feather } from "@expo/vector-icons";
 
-const Dashboard = () => {
+const Dashboard = ({ navigation }) => {
   return (
     <Layout>
       <View style={styles.main}>
         <Text style={styles.heading}>Dashboard</Text>
         <View style={styles.btnContainer}>
-          <TouchableOpacity style={styles.btn}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => navigation.navigate("Manage Products")}
+          >
             <AntDesign name="product" style={styles.icon} />
             <Text style={styles.btnText}>Manage Products</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btn}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => navigation.navigate("Manage Categories")}
+          >
             <AntDesign name="unordered-list" style={styles.icon} />
             <Text style={styles.btnText}>Manage Categories</Text>
           </TouchableOpacity>
@@ -21,7 +27,10 @@ const Dashboard = () => {
             <AntDesign name="truck" style={styles.icon} />
             <Text style={styles.btnText}>Manage Orders</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btn}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={() => navigation.navigate("Manage Users")}
+          >
             <Feather name="users" style={styles.icon} />
             <Text style={styles.btnText}>Manage Users</Text>
           </TouchableOpacity>

@@ -11,7 +11,7 @@ import {
   updateProductImageController,
 } from "../controller/productController.js";
 import { isAdmin, isAuthenticated } from "../middlewares/authMiddleware.js";
-import { singleUpload } from "../middlewares/multer.js";
+import { multiUpload, singleUpload } from "../middlewares/multer.js";
 
 const router = Router();
 
@@ -29,7 +29,8 @@ router.get("/:id", getSingleProductController);
 router.post(
   "/create-product",
   isAuthenticated,
-  singleUpload,
+  isAdmin,
+  multiUpload,
   createProductController,
 );
 
@@ -53,10 +54,10 @@ router.delete(
   deleteProductImageController,
 );
 
-export default router;
-
 //Delete product
-router.delete("/:id", isAuthenticated, DeleteProductController);
+router.delete("/:id", isAuthenticated, isAdmin, DeleteProductController);
 
 //Create Product review
 router.post("/:id/review", isAuthenticated, createProductReviewController);
+
+export default router;

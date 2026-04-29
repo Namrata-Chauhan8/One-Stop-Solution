@@ -1,17 +1,16 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useReduxStateHook } from "../../hooks/customHooks";
 import React from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../redux/features/auth/userAction";
 
 const Footer = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.user);
 
-  const { loading } = useReduxStateHook(navigation, "Login");
   return (
     <View style={styles.container}>
       <TouchableOpacity

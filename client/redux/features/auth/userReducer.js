@@ -60,6 +60,54 @@ export const userReducer = createReducer({}, (builder) => {
     state.error = action.payload;
   });
 
+  // Update Profile
+  builder.addCase("updateProfileRequest", (state, action) => {
+    state.loading = true;
+    state.error = null;
+  });
+  builder.addCase("updateProfileSuccess", (state, action) => {
+    state.loading = false;
+    state.isAuthenticated = true;
+    state.user = action.payload;
+    state.error = null;
+    state.message = "Profile updated successfully";
+  });
+  builder.addCase("updateProfileFail", (state, action) => {
+    state.loading = false;
+    state.error = action.payload;
+    state.message = null;
+  });
+
+  // Update/Delete Profile Picture
+  builder.addCase("updateProfilePictureRequest", (state, action) => {
+    state.loading = true;
+    state.error = null;
+  });
+  builder.addCase("updateProfilePictureSuccess", (state, action) => {
+    state.loading = false;
+    state.error = null;
+    state.message = "Profile picture updated successfully";
+  });
+  builder.addCase("updateProfilePictureFail", (state, action) => {
+    state.loading = false;
+    state.error = action.payload;
+    state.message = null;
+  });
+  builder.addCase("deleteProfilePictureRequest", (state, action) => {
+    state.loading = true;
+    state.error = null;
+  });
+  builder.addCase("deleteProfilePictureSuccess", (state, action) => {
+    state.loading = false;
+    state.error = null;
+    state.message = "Profile picture deleted successfully";
+  });
+  builder.addCase("deleteProfilePictureFail", (state, action) => {
+    state.loading = false;
+    state.error = action.payload;
+    state.message = null;
+  });
+
   //Logout
   builder.addCase("logoutRequest", (state, action) => {
     state.loading = true;

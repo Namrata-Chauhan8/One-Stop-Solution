@@ -6,17 +6,60 @@ import cloudinary from "cloudinary";
 export const getAllProductsController = async (req, res) => {
   const { keyword, category } = req.query;
   try {
-    const products = await Product.find({
-      name: {
-        $regex: keyword ? keyword : "",
+    const filter = {};
+    const page = Number.parseInt(req.query.page, 10);
+    const limit = Number.parseInt(req.query.limit, 10);
+    const shouldPaginate =
+      req.query.page !== undefined || req.query.limit !== undefined;
+    const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const pageLimit = Number.isInteger(limit) && limit > 0 ? limit : 10;
+
+    if (keyword) {
+      filter.name = {
+        $regex: keyword,
         $options: "i",
-      },
-      category: category ? category : "",
-    }).populate("category");
+      };
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (!shouldPaginate) {
+      const products = await Product.find(filter)
+        .populate("category")
+        .sort({ createdAt: -1 });
+
+      return res.status(200).send({
+        success: true,
+        message: "All Products List",
+        products,
+        totalProducts: products.length,
+      });
+    }
+
+    const totalProducts = await Product.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(totalProducts / pageLimit));
+    const safePage = Math.min(currentPage, totalPages);
+    const skip = (safePage - 1) * pageLimit;
+    const products = await Product.find(filter)
+      .populate("category")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit);
+
     return res.status(200).send({
       success: true,
       message: "All Products List",
       products,
+      pagination: {
+        totalProducts,
+        totalPages,
+        currentPage: safePage,
+        pageSize: pageLimit,
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1,
+      },
     });
   } catch (error) {
     console.log(error);
@@ -82,19 +125,24 @@ export const createProductController = async (req, res) => {
       });
     }
 
-    if (!req.file) {
+    const files = req.files || [];
+    if (!files.length) {
       return res.status(400).send({
         success: false,
-        message: "Please provide an image for the product",
+        message: "Please provide at least one image for the product",
       });
     }
 
-    const file = getDataUri(req.file);
-    const cdb = await cloudinary.v2.uploader.upload(file.content);
-    const image = {
-      public_id: cdb.public_id,
-      url: cdb.secure_url,
-    };
+    const images = await Promise.all(
+      files.map(async (file) => {
+        const fileData = getDataUri(file);
+        const cdb = await cloudinary.v2.uploader.upload(fileData.content);
+        return {
+          public_id: cdb.public_id,
+          url: cdb.secure_url,
+        };
+      }),
+    );
 
     await Product.create({
       name,
@@ -102,7 +150,7 @@ export const createProductController = async (req, res) => {
       price,
       category,
       stock,
-      images: [image],
+      images,
     });
     return res.status(201).send({
       success: true,
@@ -121,7 +169,7 @@ export const createProductController = async (req, res) => {
 //Update Product
 export const updateProductController = async (req, res) => {
   try {
-    const { name, description, price, category, stock } = req.body;
+    const { name, description, price, category, stock, quantity } = req.body;
     const productId = req.params.id;
 
     const product = await Product.findById(productId);
@@ -137,6 +185,7 @@ export const updateProductController = async (req, res) => {
     product.price = price || product.price;
     product.category = category || product.category;
     product.stock = stock || product.stock;
+    product.quantity = quantity || product.quantity;
 
     await product.save();
 
@@ -215,19 +264,19 @@ export const deleteProductImageController = async (req, res) => {
         message: "Image not found",
       });
     }
-    const isExist = -1;
+    let isExist = -1;
     product.images.forEach((item, index) => {
       if (item._id.toString() === id.toString()) {
         isExist = index;
       }
-      if (isExist < 0) {
-        return res.status(404).send({
-          success: false,
-          message: "Image not found",
-        });
-      }
-      //Delete image from cloudinary
     });
+    if (isExist < 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Image not found",
+      });
+    }
+    //Delete image from cloudinary
     await cloudinary.v2.uploader.destroy(product.images[isExist].public_id);
     product.images.splice(isExist, 1);
     await product.save();

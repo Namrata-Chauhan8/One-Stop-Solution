@@ -7,8 +7,10 @@ import {
   updateProfileController,
   updatePasswordController,
   updateProfilePictureController,
+  deleteProfilePictureController,
+  getAllUsersController,
 } from "../controller/userController.js";
-import { isAuthenticated } from "../middlewares/authMiddleware.js";
+import { isAdmin, isAuthenticated } from "../middlewares/authMiddleware.js";
 import { singleUpload } from "../middlewares/multer.js";
 
 const router = Router();
@@ -22,6 +24,9 @@ router.post("/login", loginController);
 
 //profile
 router.get("/profile", isAuthenticated, getProfileController);
+
+//admin users
+router.get("/admin/get-all", isAuthenticated, isAdmin, getAllUsersController);
 
 //Logout
 router.post("/logout", logoutController);
@@ -38,6 +43,12 @@ router.put(
   isAuthenticated,
   singleUpload,
   updateProfilePictureController,
+);
+
+router.delete(
+  "/delete-profile-picture",
+  isAuthenticated,
+  deleteProfilePictureController,
 );
 
 export default router;

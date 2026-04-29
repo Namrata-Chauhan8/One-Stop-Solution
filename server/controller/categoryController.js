@@ -1,16 +1,59 @@
 import { Categories } from "../model/categoryModel.js";
 import { Product } from "../model/productModel.js";
 
+const normalizeCategoryName = (value) => value?.trim();
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 //get all categories controller
 export const getAllCategoriesController = async (req, res) => {
   try {
-    const categories = await Categories.find({});
+    const page = Number.parseInt(req.query.page, 10);
+    const limit = Number.parseInt(req.query.limit, 10);
+    const shouldPaginate =
+      req.query.page !== undefined || req.query.limit !== undefined;
+    const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+    const pageLimit = Number.isInteger(limit) && limit > 0 ? limit : 10;
+    const keyword = normalizeCategoryName(req.query.keyword);
+    const filter = {};
+
+    if (keyword) {
+      filter.category = { $regex: escapeRegex(keyword), $options: "i" };
+    }
+
+    const totalCategories = await Categories.countDocuments(filter);
+    if (!shouldPaginate) {
+      const categories = await Categories.find(filter).sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        message: "Categories fetched successfully",
+        success: true,
+        totalCategories,
+        categories,
+      });
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalCategories / pageLimit));
+    const safePage = Math.min(currentPage, totalPages);
+    const skip = (safePage - 1) * pageLimit;
+    const categories = await Categories.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageLimit);
 
     return res.status(200).json({
       message: "Categories fetched successfully",
       success: true,
-      totalCategories: categories.length,
+      totalCategories,
       categories,
+      pagination: {
+        totalCategories,
+        totalPages,
+        currentPage: safePage,
+        pageSize: pageLimit,
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1,
+      },
     });
   } catch (error) {
     console.error("Error getting categories:", error);
@@ -23,12 +66,14 @@ export const getAllCategoriesController = async (req, res) => {
 //create category controller
 export const createCategoryController = async (req, res) => {
   try {
-    const { category } = req.body;
+    const category = normalizeCategoryName(req.body.category);
     if (!category) {
       return res.status(400).json({ message: "Category is required" });
     }
 
-    const existingCategory = await Categories.findOne({ category });
+    const existingCategory = await Categories.findOne({
+      category: { $regex: `^${escapeRegex(category)}$`, $options: "i" },
+    });
     if (existingCategory) {
       return res.status(400).json({ message: "Category already exists" });
     }
@@ -54,15 +99,11 @@ export const deleteCategoryController = async (req, res) => {
         .status(404)
         .json({ message: "Category not found", success: false });
     }
-    //find product with this category id
-    const products = await Product.findOne({ category: category._id });
+    await Product.updateMany(
+      { category: category._id },
+      { $unset: { category: "" } },
+    );
 
-    //update product category to null
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      product.category = undefined;
-      await product.save();
-    }
     await category.deleteOne();
     return res.status(200).json({
       message: "Category deleted successfully",
@@ -86,21 +127,28 @@ export const updateCategoryController = async (req, res) => {
         .json({ message: "Category not found", success: false });
     }
 
-    const { updatedCategory } = req.body;
+    const updatedCategory = normalizeCategoryName(
+      req.body.updatedCategory ?? req.body.category,
+    );
 
-    const product = await Product.findOne({ category: category._id });
-    //update product category to null
-    if (product) {
-      for (let i = 0; i < product.length; i++) {
-        const product = product[i];
-        product.category = updatedCategory;
-        await product.save();
-      }
-    }
-    if (updatedCategory) {
-      category.category = updatedCategory;
+    if (!updatedCategory) {
+      return res
+        .status(400)
+        .json({ message: "Updated category is required", success: false });
     }
 
+    const existingCategory = await Categories.findOne({
+      _id: { $ne: category._id },
+      category: { $regex: `^${escapeRegex(updatedCategory)}$`, $options: "i" },
+    });
+
+    if (existingCategory) {
+      return res
+        .status(400)
+        .json({ message: "Category already exists", success: false });
+    }
+
+    category.category = updatedCategory;
     await category.save();
     return res.status(200).json({
       message: "Category updated successfully",

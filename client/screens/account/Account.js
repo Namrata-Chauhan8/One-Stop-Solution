@@ -1,10 +1,48 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import React from "react";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import React, { useEffect } from "react";
 import Layout from "../../components/layouts/Layout";
-import { UserData } from "../../data/UserData";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useDispatch, useSelector } from "react-redux";
+import { getUserData } from "../../redux/features/auth/userAction";
 
 const Account = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { user, loading } = useSelector((state) => state.user);
+  const profile = user?.user ?? user ?? null;
+  const resolveImageUri = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (typeof value.uri === "string") return value.uri;
+      if (typeof value.url === "string") return value.url;
+      return "";
+    }
+    return "";
+  };
+
+  useEffect(() => {
+    dispatch(getUserData()).catch((error) => {
+      console.log("Profile error:", error.message || error);
+    });
+  }, [dispatch]);
+
+  if (loading && !profile) {
+    return (
+      <Layout>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B6B" />
+        </View>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <View style={styles.container}>
@@ -12,21 +50,37 @@ const Account = ({ navigation }) => {
           <View style={styles.profileImageWrapper}>
             <Image
               source={{
-                uri: UserData?.profilePicture,
+                uri:
+                  resolveImageUri(profile?.profilePicture) ||
+                  "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
               }}
               style={styles.profilePicture}
             />
           </View>
-          <Text style={styles.profileName}>Hello, {UserData?.name}</Text>
+          <Text style={styles.profileName}>
+            Hello, {profile?.name || "User"}
+          </Text>
 
           <View style={styles.infoSection}>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="email" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>{UserData?.email}</Text>
+              <Text style={styles.infoText}>{profile?.email || "-"}</Text>
             </View>
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="phone" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>{UserData?.phone}</Text>
+              <Text style={styles.infoText}>{profile?.phone || "-"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons
+                name="map-marker"
+                size={20}
+                color="#FF6B6B"
+              />
+              <Text style={styles.infoText}>
+                {[profile?.address, profile?.city, profile?.country]
+                  .filter(Boolean)
+                  .join(", ") || "-"}
+              </Text>
             </View>
           </View>
         </View>
@@ -35,7 +89,7 @@ const Account = ({ navigation }) => {
         <Text style={styles.accountSettingLabel}>Account Settings</Text>
         <TouchableOpacity
           style={styles.editProfileBtn}
-          onPress={() => navigation.navigate("Profile", { id: UserData?._id })}
+          onPress={() => navigation.navigate("Profile", { id: profile?._id })}
         >
           <AntDesign name="edit" style={styles.editProfileBtnText} />
           <Text style={styles.editProfileBtnText}>Edit Profile</Text>
@@ -54,15 +108,17 @@ const Account = ({ navigation }) => {
           <AntDesign name="bell" style={styles.editProfileBtnText} />
           <Text style={styles.editProfileBtnText}>Notifications</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.editProfileBtn}
-          onPress={() =>
-            navigation.navigate("Admin Panel", { id: UserData?._id })
-          }
-        >
-          <AntDesign name="setting" style={styles.editProfileBtnText} />
-          <Text style={styles.editProfileBtnText}>Admin Panel</Text>
-        </TouchableOpacity>
+        {profile?.role === "admin" ? (
+          <TouchableOpacity
+            style={styles.editProfileBtn}
+            onPress={() =>
+              navigation.navigate("Admin Panel", { id: profile?._id })
+            }
+          >
+            <AntDesign name="setting" style={styles.editProfileBtnText} />
+            <Text style={styles.editProfileBtnText}>Admin Panel</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </Layout>
   );
@@ -76,6 +132,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginVertical: 20,
     paddingHorizontal: 15,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   profileCard: {
     width: "100%",

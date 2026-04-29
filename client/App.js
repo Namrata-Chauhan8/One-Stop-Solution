@@ -2,6 +2,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Provider, useDispatch, useSelector } from "react-redux";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import Home from "./screens/Home";
 import About from "./screens/About";
 import ProductDetails from "./screens/ProductDetails";
@@ -15,9 +16,12 @@ import Notification from "./screens/account/Notification";
 import Profile from "./screens/account/Profile";
 import MyOrders from "./screens/account/MyOrders";
 import Dashboard from "./screens/admin/Dashboard";
+import ManageProducts from "./screens/admin/ManageProducts";
 import store from "./redux/store";
 import { useEffect, useState } from "react";
 import { getUserData } from "./redux/features/auth/userAction";
+import ManageCategories from "./screens/admin/ManageCategories";
+import ManageUsers from "./screens/admin/ManageUsers";
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +42,9 @@ const AuthNavigator = () => (
     <Stack.Screen name="Profile" component={Profile} />
     <Stack.Screen name="My Orders" component={MyOrders} />
     <Stack.Screen name="Admin Panel" component={Dashboard} />
+    <Stack.Screen name="Manage Products" component={ManageProducts} />
+    <Stack.Screen name="Manage Categories" component={ManageCategories} />
+    <Stack.Screen name="Manage Users" component={ManageUsers} />
   </Stack.Navigator>
 );
 
@@ -88,9 +95,11 @@ const BootstrapNavigator = () => {
 
 export default function App() {
   return (
-    <Provider store={store}>
-      <BootstrapNavigator />
-    </Provider>
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <BootstrapNavigator />
+      </Provider>
+    </SafeAreaProvider>
   );
 }
 

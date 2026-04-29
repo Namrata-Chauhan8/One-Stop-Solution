@@ -1,4 +1,4 @@
-import express, { Router } from "express";
+import { Router } from "express";
 import { isAdmin, isAuthenticated } from "../middlewares/authMiddleware.js";
 import {
   createCategoryController,

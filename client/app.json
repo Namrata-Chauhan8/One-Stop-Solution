@@ -13,15 +13,29 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow One-Stop Solution to access your photos for product images.",
+        "NSCameraUsageDescription": "Allow One-Stop Solution to access your camera for product images."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE"]
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow One-Stop Solution to access your photos for product images.",
+          "cameraPermission": "Allow One-Stop Solution to access your camera for product images."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

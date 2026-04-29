@@ -3,8 +3,13 @@ import { server } from "../redux/store";
 const api = async (endpoint, payload = null, method = "GET") => {
   const normalizedMethod = method.toUpperCase();
   const isBodyMethod = !["GET", "HEAD"].includes(normalizedMethod);
+  const isFormData =
+    typeof FormData !== "undefined" && payload instanceof FormData;
   const hasPayload =
-    payload && typeof payload === "object" && Object.keys(payload).length > 0;
+    payload &&
+    typeof payload === "object" &&
+    !isFormData &&
+    Object.keys(payload).length > 0;
   let requestUrl = `${server}${endpoint}`;
 
   const config = {
@@ -16,8 +21,12 @@ const api = async (endpoint, payload = null, method = "GET") => {
   };
 
   if (isBodyMethod) {
-    config.headers["Content-Type"] = "application/json";
-    config.body = JSON.stringify(payload ?? {});
+    if (isFormData) {
+      config.body = payload;
+    } else {
+      config.headers["Content-Type"] = "application/json";
+      config.body = JSON.stringify(payload ?? {});
+    }
   } else if (hasPayload) {
     const searchParams = new URLSearchParams(payload);
     requestUrl += `?${searchParams.toString()}`;

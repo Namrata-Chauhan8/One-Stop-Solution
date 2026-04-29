@@ -1,58 +1,225 @@
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  View,
-  TouchableOpacity,
   TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AntDesign } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import Layout from "../../components/layouts/Layout";
-import { UserData } from "../../data/UserData";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getUserData,
+  deleteProfilePicture,
+  updateProfile,
+  updateProfilePicture,
+} from "../../redux/features/auth/userAction";
 
-const Profile = ({ navigation }) => {
-  const [name, setName] = useState(UserData.name);
-  const [email, setEmail] = useState(UserData.email);
-  const [password, setPassword] = useState(UserData.password);
-  const [profilePicture, setProfilePicture] = useState(UserData.profilePicture);
-  const [address, setAddress] = useState(UserData.address);
-  const [city, setCity] = useState(UserData.city);
-  const [contact, setContact] = useState(UserData.contact);
+const Profile = ({ navigation, route }) => {
+  const dispatch = useDispatch();
+  const { user, loading } = useSelector((state) => state.user);
+  const profile = user?.user ?? user ?? null;
+  const routeId = route?.params?.id;
 
-  const handleEditPicture = () => {
-    Alert.alert("Edit Picture", "Choose from camera or gallery");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [contact, setContact] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
+  const [localLoading, setLocalLoading] = useState(false);
+  const resolveImageUri = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (typeof value.uri === "string") return value.uri;
+      if (typeof value.url === "string") return value.url;
+      return "";
+    }
+    return "";
   };
 
-  const handleDeletePicture = () => {
+  useEffect(() => {
+    if (!profile) {
+      dispatch(getUserData()).catch((error) => {
+        console.log("Profile load error:", error.message || error);
+      });
+    }
+  }, [dispatch, profile, routeId]);
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name || "");
+      setEmail(profile.email || "");
+      setAddress(profile.address || "");
+      setCity(profile.city || "");
+      setCountry(profile.country || "");
+      setContact(profile.phone || "");
+      setProfilePicture(resolveImageUri(profile.profilePicture));
+    }
+  }, [profile]);
+
+  const uploadSelectedImage = async (asset) => {
+    if (!asset?.uri) return;
+
+    setProfilePicture(asset.uri);
+    setLocalLoading(true);
+    try {
+      await dispatch(
+        updateProfilePicture(asset.uri, asset.fileName, asset.mimeType),
+      );
+    } catch (error) {
+      setProfilePicture(resolveImageUri(profile?.profilePicture));
+      Alert.alert("Error", error.message || "Could not update profile picture");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleEditPicture = () => {
     Alert.alert(
-      "Delete Picture",
-      "Are you sure you want to delete your profile picture?",
+      "Change Photo",
+      "Choose where you want to pick the image from",
       [
-        { text: "Cancel", onPress: () => {}, style: "cancel" },
         {
-          text: "Delete",
-          onPress: () => {
-            setProfilePicture("");
-            Alert.alert("Deleted", "Profile picture removed");
+          text: "Gallery",
+          onPress: async () => {
+            const permission =
+              await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+              Alert.alert(
+                "Permission required",
+                "Please allow photo library access to choose a profile picture.",
+              );
+              return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+
+            if (result.canceled || !result.assets?.length) {
+              return;
+            }
+
+            await uploadSelectedImage(result.assets[0]);
           },
-          style: "destructive",
+        },
+        {
+          text: "Camera",
+          onPress: async () => {
+            const permission =
+              await ImagePicker.requestCameraPermissionsAsync();
+            if (!permission.granted) {
+              Alert.alert(
+                "Permission required",
+                "Please allow camera access to take a new profile picture.",
+              );
+              return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+
+            if (result.canceled || !result.assets?.length) {
+              return;
+            }
+
+            await uploadSelectedImage(result.assets[0]);
+          },
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
         },
       ],
     );
   };
 
-  const handleSaveChanges = () => {
-    Alert.alert("Success", "Profile updated successfully!");
-    navigation.goBack();
+  const handleDeletePicture = () => {
+    Alert.alert(
+      "Delete Photo",
+      "Are you sure you want to remove your profile picture?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setLocalLoading(true);
+            try {
+              await dispatch(deleteProfilePicture());
+              setProfilePicture("");
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                error.message || "Could not delete profile picture",
+              );
+            } finally {
+              setLocalLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
+  const handleSaveChanges = async () => {
+    if (!name.trim() || !email.trim() || !address.trim() || !city.trim()) {
+      Alert.alert("Validation", "Please fill all required fields.");
+      return;
+    }
+
+    setLocalLoading(true);
+    try {
+      await dispatch(
+        updateProfile(
+          name.trim(),
+          email.trim(),
+          password.trim() || undefined,
+          address.trim(),
+          city.trim(),
+          country.trim(),
+          contact.trim(),
+        ),
+      );
+      setPassword("");
+      Alert.alert("Success", "Profile updated successfully", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (error) {
+      console.log("Update profile error:", error.message || error);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const saving = loading || localLoading;
+
   return (
-    <Layout>
+    <Layout scroll={false}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -60,26 +227,30 @@ const Profile = ({ navigation }) => {
       >
         <View style={styles.container}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
             <View style={styles.headerSection}>
               <Text style={styles.headerText}>Edit Profile</Text>
             </View>
 
-            {/* Profile Picture Section */}
             <View style={styles.profilePictureSection}>
               <TouchableOpacity activeOpacity={0.8} onPress={handleEditPicture}>
                 <View style={styles.imageContainerWrapper}>
                   <View style={styles.imageContainer}>
-                    <Image
-                      source={{
-                        uri:
-                          profilePicture ||
-                          "https://via.placeholder.com/150?text=No+Image",
-                      }}
-                      style={styles.image}
-                    />
+                    {resolveImageUri(profilePicture) ? (
+                      <Image
+                        source={{ uri: resolveImageUri(profilePicture) }}
+                        style={styles.image}
+                      />
+                    ) : (
+                      <View style={styles.placeholderAvatar}>
+                        <Image
+                          source={{
+                            uri: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+                          }}
+                          style={styles.image}
+                        />
+                      </View>
+                    )}
                   </View>
-                  {/* Overlay hint on image */}
                   <View style={styles.imageOverlay}>
                     <AntDesign name="camera" size={32} color="#fff" />
                     <Text style={styles.overlayText}>Tap to change</Text>
@@ -87,7 +258,6 @@ const Profile = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
 
-              {/* Action Buttons */}
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
                   style={styles.changePhotoButton}
@@ -109,9 +279,7 @@ const Profile = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Profile Information Section */}
             <View style={styles.infoSection}>
-              {/* Name */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Name</Text>
                 <TextInput
@@ -120,10 +288,10 @@ const Profile = ({ navigation }) => {
                   onChangeText={setName}
                   placeholder="Enter your name"
                   placeholderTextColor="#999"
+                  editable={!saving}
                 />
               </View>
 
-              {/* Email */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
@@ -133,23 +301,25 @@ const Profile = ({ navigation }) => {
                   placeholder="Enter your email"
                   placeholderTextColor="#999"
                   keyboardType="email-address"
+                  editable={!saving}
                 />
               </View>
 
-              {/* Contact */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Contact</Text>
                 <TextInput
                   style={styles.input}
                   value={contact}
-                  onChangeText={setContact}
+                  onChangeText={(text) =>
+                    setContact(text.replace(/[^0-9]/g, ""))
+                  }
                   placeholder="Enter your contact number"
                   placeholderTextColor="#999"
                   keyboardType="phone-pad"
+                  editable={!saving}
                 />
               </View>
 
-              {/* Address */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Address</Text>
                 <TextInput
@@ -160,10 +330,10 @@ const Profile = ({ navigation }) => {
                   placeholderTextColor="#999"
                   multiline={true}
                   numberOfLines={3}
+                  editable={!saving}
                 />
               </View>
 
-              {/* City */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>City</Text>
                 <TextInput
@@ -172,32 +342,51 @@ const Profile = ({ navigation }) => {
                   onChangeText={setCity}
                   placeholder="Enter your city"
                   placeholderTextColor="#999"
+                  editable={!saving}
                 />
               </View>
 
-              {/* Password */}
               <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={styles.label}>Country</Text>
+                <TextInput
+                  style={styles.input}
+                  value={country}
+                  onChangeText={setCountry}
+                  placeholder="Enter your country"
+                  placeholderTextColor="#999"
+                  editable={false}
+                />
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>New Password</Text>
                 <TextInput
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Enter your password"
+                  placeholder="Leave blank to keep current password"
                   placeholderTextColor="#999"
                   secureTextEntry={true}
+                  editable={!saving}
                 />
               </View>
             </View>
 
-            {/* Save Button */}
             <TouchableOpacity
-              style={styles.saveButton}
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               onPress={handleSaveChanges}
               activeOpacity={0.8}
+              disabled={saving}
             >
               <View style={styles.saveButtonContent}>
-                <AntDesign name="save" size={16} color="#fff" />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <AntDesign name="save" size={16} color="#fff" />
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  </>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -252,6 +441,12 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#007AFF",
   },
+  placeholderAvatar: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FF6B6B",
+  },
   image: {
     width: "100%",
     height: "100%",
@@ -263,14 +458,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    borderRadius: 80,
-    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 80,
   },
   overlayText: {
     color: "#fff",
-    fontSize: 12,
     marginTop: 6,
     fontWeight: "600",
   },
@@ -280,92 +474,67 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   changePhotoButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 8,
     backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
   },
   changePhotoButtonText: {
     color: "#fff",
-    fontSize: 14,
     fontWeight: "600",
   },
   deletePhotoButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 8,
     backgroundColor: "#FF3B30",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
   },
   deletePhotoButtonText: {
     color: "#fff",
-    fontSize: 14,
     fontWeight: "600",
   },
   infoSection: {
     backgroundColor: "#fff",
-    borderRadius: 15,
-    padding: 20,
-    marginVertical: 10,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.84,
+    borderRadius: 14,
+    padding: 16,
   },
   fieldContainer: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#666",
-    marginBottom: 6,
-    textTransform: "uppercase",
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: "#f9f9f9",
-    color: "#333",
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#fafafa",
+    color: "#1a1a1a",
   },
   multilineInput: {
+    minHeight: 90,
     textAlignVertical: "top",
   },
   saveButton: {
-    backgroundColor: "#007AFF",
+    marginTop: 18,
+    backgroundColor: "#111827",
+    borderRadius: 12,
     paddingVertical: 14,
-    borderRadius: 10,
     alignItems: "center",
-    marginVertical: 20,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
   saveButtonContent: {
     flexDirection: "row",
@@ -378,6 +547,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   spacing: {
-    height: 20,
+    height: 30,
   },
 });
